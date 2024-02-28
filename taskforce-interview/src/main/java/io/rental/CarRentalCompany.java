@@ -13,6 +13,10 @@ public class CarRentalCompany {
 
     private List<Booking> bookings = new ArrayList<Booking>();
 
+    public List<Booking> getBookings(){
+        return bookings;
+    }
+
     public void addCar(Car car) {
         cars.add(car);
     }
@@ -21,6 +25,10 @@ public class CarRentalCompany {
     public synchronized List<Car> matchingCars(Criteria criteria) {
         List<Car> results = new ArrayList<Car>();
 
+        /* if no criteria is set then return all cars*/
+        if (criteria.getMake()==null && criteria.getModel()==null){
+            return cars;
+        }
 
         for (Car c : cars){
             /* check whether make and model matches */
@@ -29,14 +37,14 @@ public class CarRentalCompany {
                 boolean carBooked = false;
 
                 for (Booking b : bookings) {
-                    if (c.getRegistrationNumber().matches(b.getCar().getRegistrationNumber()) && !isBooked(criteria, b)) {
+                    if (c.getRegistrationNumber().matches(b.getCar().getRegistrationNumber()) && isBooked(criteria, b)) {
                         carBooked = true;
                         break;
                     }
                 }
 
                 /* if make and model matches and car is not booked then add to results */
-                if (carBooked = false) {
+                if (!carBooked) {
                     results.add(c);
                 }
             }
@@ -63,6 +71,11 @@ public class CarRentalCompany {
     /* Story 3 - Booking a car */
     public synchronized void addBooking(Booking newBooking) throws BookingException {
 
+        /* check if booking is in the past */
+        if(newBooking.getStartDate().isBefore(LocalDate.now())){
+            throw new BookingException("Booking is in the past");
+        }
+
         /* check that booking does not clash with existing ones */
         for (Booking b : bookings){
             /* check whether booking exists for the same car */
@@ -73,7 +86,7 @@ public class CarRentalCompany {
                 c.setFromDate(newBooking.getStartDate());
                 c.setToDate(newBooking.getEndDate());
                 if(isBooked(c, b)){
-                    throw new BookingException ("A bookign already exists for these dates");
+                    throw new BookingException ("A booking already exists for these dates");
                 }
             }
         }
@@ -86,14 +99,16 @@ public class CarRentalCompany {
     public List<Booking> upcomingRentals(){
         List<Booking> upcomingRentals = new ArrayList<Booking>();
 
+        /* find booking between tomorrow and 7 days from today */
+
         for (Booking b : bookings) {
-            if (b.getStartDate().isAfter(LocalDate.now()) && b.getEndDate().isBefore(LocalDate.now().plusDays(7))) {
+            if (b.getStartDate().isAfter(LocalDate.now()) && b.getStartDate().isBefore(LocalDate.now().plusDays(8))) {
                 upcomingRentals.add(b);
             }
         }
 
         /* sort the results by date */
-        upcomingRentals.sort(Comparator.comparing(Booking::getEndDate));
+        upcomingRentals.sort(Comparator.comparing(Booking::getStartDate));
         return upcomingRentals;
     }
 
@@ -112,13 +127,13 @@ public class CarRentalCompany {
     }
 
     /* Story 6 - Rental Pricing */
-    public List<Car> getBlendedPrice(){
+    public Map<String, Double> getBlendedPrice(){
         List<Car> blendedPrices = new ArrayList<Car>();
 
         Map<String, Double> map = cars.stream().collect(groupingBy(Car::getRentalGroup, averagingDouble(Car::getCostPerDay)));
 
         //blendedPrices = cars.stream().map(Car::setCostPerDay, map.get(Car::getRentalGroup));
-        return null;
+        return map;
     }
 
 
@@ -134,22 +149,12 @@ public class CarRentalCompany {
         LocalDate startDate = b.getStartDate();
         LocalDate endDate = b.getEndDate();
 
-        if(queryStartDate.isBefore(startDate) && queryEndDate.isAfter(endDate)) {
-            /* booking lies within queried dates */
+        /* check that queried dates lies outside of booked dates */
+        if(queryEndDate.isBefore(startDate) || queryStartDate.isAfter(endDate)){
+            return false;
+        }else{
             return true;
         }
-        if (queryStartDate.isAfter(startDate) && queryStartDate.isBefore(endDate)) {
-            /* start date lies within booking period */
-            return true;
-        }
-
-        if (queryEndDate.isAfter(startDate) && queryEndDate.isBefore(endDate)){
-            /* end date lies within booking period */
-            return true;
-        }
-
-        /* no booking for the period */
-        return false;
     }
 
 }
