@@ -12,7 +12,20 @@ public class Booking {
 
     private LocalDate endDate;
 
+    public double getDailyCost() {
+        return dailyCost;
+    }
+
+    public void setDailyCost(double dailyCost) {
+        this.dailyCost = dailyCost;
+    }
+
+    private double dailyCost;
+
     private boolean isMaintenance = false;
+
+    public Booking() {
+    }
 
     public boolean isMaintenance() {
         return isMaintenance;

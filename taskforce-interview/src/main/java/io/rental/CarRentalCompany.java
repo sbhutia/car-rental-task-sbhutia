@@ -25,17 +25,18 @@ public class CarRentalCompany {
     public synchronized List<Car> matchingCars(Criteria criteria) {
         List<Car> results = new ArrayList<Car>();
 
-        /* if no criteria is set then return all cars*/
+        // if no criteria is set then return all cars as match
         if (criteria.getMake()==null && criteria.getModel()==null){
             return cars;
         }
 
         for (Car c : cars){
-            /* check whether make and model matches */
+            // check whether make and model matches
             if (c.getMake().equals(criteria.getMake()) && c.getModel().equals(criteria.getModel())) {
 
                 boolean carBooked = false;
 
+                // check if car is already booked for the period
                 for (Booking b : bookings) {
                     if (c.getRegistrationNumber().matches(b.getCar().getRegistrationNumber()) && isBooked(criteria, b)) {
                         carBooked = true;
@@ -43,7 +44,7 @@ public class CarRentalCompany {
                     }
                 }
 
-                /* if make and model matches and car is not booked then add to results */
+                // if make and model matches and car is not booked then add to results
                 if (!carBooked) {
                     results.add(c);
                 }
@@ -70,18 +71,16 @@ public class CarRentalCompany {
 
     /* Story 3 - Booking a car */
     public synchronized void addBooking(Booking newBooking) throws BookingException {
-
-        /* check if booking is in the past */
+        // check if booking is in the past
         if(newBooking.getStartDate().isBefore(LocalDate.now())){
             throw new BookingException("Booking is in the past");
         }
 
-        /* check that booking does not clash with existing ones */
+        // check that booking does not clash with existing ones
         for (Booking b : bookings){
-            /* check whether booking exists for the same car */
 
+            // check whether booking exists for the same car */
             if(b.getCar().getRegistrationNumber().equals(newBooking.getCar().getRegistrationNumber())){
-                /* check whether there is a date clash */
                 Criteria c = new Criteria();
                 c.setFromDate(newBooking.getStartDate());
                 c.setToDate(newBooking.getEndDate());
@@ -91,7 +90,7 @@ public class CarRentalCompany {
             }
         }
 
-        /* if checks have passed then add new booking */
+        // if checks have passed then add new booking
         bookings.add(newBooking);
     }
 
@@ -99,8 +98,7 @@ public class CarRentalCompany {
     public List<Booking> upcomingRentals(){
         List<Booking> upcomingRentals = new ArrayList<Booking>();
 
-        /* find booking between tomorrow and 7 days from today */
-
+        // find booking between tomorrow and 7 days from today
         for (Booking b : bookings) {
             if (b.getStartDate().isAfter(LocalDate.now()) && b.getStartDate().isBefore(LocalDate.now().plusDays(8))) {
                 upcomingRentals.add(b);
@@ -109,14 +107,13 @@ public class CarRentalCompany {
 
         /* sort the results by date */
         upcomingRentals.sort(Comparator.comparing(Booking::getStartDate));
+
         return upcomingRentals;
     }
 
     /* Story 5 - car maintenance */
     public synchronized void registerCarMaintenance (Car car, LocalDate startDate, LocalDate endDate){
-
-
-        /* book the car for maintenance */
+        // book the car for maintenance
         Booking maintenanceBooking = new Booking();
         maintenanceBooking.setCar(car);
         maintenanceBooking.setStartDate(startDate);
@@ -127,21 +124,27 @@ public class CarRentalCompany {
     }
 
     /* Story 6 - Rental Pricing */
+    public synchronized List<Car> getMatchingCarsIncludingBlendedPrice(String make, String model, LocalDate startDate, LocalDate endDate) throws BookingException {
+        List<Car> matchingCars = availableCars(make, model, startDate, endDate);
+
+        // add blended price to the cars;
+        Map<String, Double> blendedPrices = getBlendedPrice();
+        for(Car car: matchingCars){
+            car.setCostPerDay(blendedPrices.get(car.getRentalGroup()));
+        }
+
+        return matchingCars;
+    }
+
     public Map<String, Double> getBlendedPrice(){
         List<Car> blendedPrices = new ArrayList<Car>();
 
         Map<String, Double> map = cars.stream().collect(groupingBy(Car::getRentalGroup, averagingDouble(Car::getCostPerDay)));
 
-        //blendedPrices = cars.stream().map(Car::setCostPerDay, map.get(Car::getRentalGroup));
         return map;
     }
 
-
-    public void rentCar(Renter renter, Car car) {}
-
-    public void returnCar(Renter renter, Car car) {}
-
-    /* Utility function to check whether the car is booked between two dates */
+    // Utility function to check whether the car is booked between two dates
      private boolean isBooked (Criteria c, Booking b){
 
         LocalDate queryStartDate = c.getFromDate();

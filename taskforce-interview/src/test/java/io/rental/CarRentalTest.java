@@ -40,16 +40,11 @@ public class CarRentalTest {
         CarRentalCompany carRentalCompany = new CarRentalCompany();
         addSampleBookings(carRentalCompany);
 
-        Criteria criteria = new Criteria();
-
-
-        /* test for car already booked for the period */
+        // test for car already booked for the period
         List<Car> availableCars = carRentalCompany.availableCars(CAR1.getMake(), CAR1.getModel(), LocalDate.now().plusDays(1), LocalDate.now().plusDays(15));
         assertThat(availableCars.size()).isEqualTo(0);
 
-        criteria = new Criteria();
-
-        /* test for car that is available during the period */
+        // test for car that is available during the period
         availableCars = carRentalCompany.availableCars(CAR1.getMake(), CAR1.getModel(), LocalDate.now().plusDays(10), LocalDate.now().plusDays(15));
         assertThat(availableCars.size()).isEqualTo(1);
     }
@@ -60,10 +55,7 @@ public class CarRentalTest {
         CarRentalCompany carRentalCompany = new CarRentalCompany();
         addSampleBookings(carRentalCompany);
 
-        Criteria criteria = new Criteria();
-
-
-        /* add a new booking - successful*/
+        // add a new booking - successful
         assertThat(carRentalCompany.getBookings().size()).isEqualTo(3);
 
         Booking booking = new Booking();
@@ -75,6 +67,7 @@ public class CarRentalTest {
 
         assertThat(carRentalCompany.getBookings().size()).isEqualTo(4);
 
+        // add same booking again - unsuccessful
         try{
             carRentalCompany.addBooking(booking);
         }catch (BookingException e){
@@ -85,12 +78,29 @@ public class CarRentalTest {
 
     /* Test for Story 4 - Find Upcoming Rentals*/
     @Test
-    public void findUpcomingRentals(){
+    public void findUpcomingRentals() throws BookingException {
         CarRentalCompany carRentalCompany = new CarRentalCompany();
 
         addSampleBookings(carRentalCompany);
 
         assertThat(carRentalCompany.upcomingRentals().size()).isEqualTo(2);
+
+        // adding new booking at the end with intermediate start date
+        Booking booking = new Booking();
+        booking.setCar(CAR4);
+        booking.setRenter(RENTER4);
+        booking.setStartDate(LocalDate.now().plusDays(2));
+        booking.setEndDate(booking.getStartDate().plusDays(4));
+        carRentalCompany.addBooking(booking);
+
+        List<Booking>  upcomingRentals = carRentalCompany.upcomingRentals();
+
+        //test that the bookings are sorted by start date
+        assertThat(upcomingRentals.size()).isEqualTo(3);
+
+        for(int i = 0; i < upcomingRentals.size()-1; i++) {
+            assertThat(upcomingRentals.get(i).getStartDate().isBefore(upcomingRentals.get(i+1).getStartDate())).isTrue();
+        }
 
     }
 
@@ -103,7 +113,7 @@ public class CarRentalTest {
 
         assertThat(carRentalCompany.getBookings().size()).isEqualTo(3);
 
-        /* add new booking as maintenance */
+        // add new booking as maintenance
         Booking maintenanceBooking = new Booking();
         maintenanceBooking.setCar(CAR4);
         maintenanceBooking.setStartDate(LocalDate.now().plusDays(20));
@@ -122,9 +132,29 @@ public class CarRentalTest {
 
         addSampleBookings(carRentalCompany);
 
-        Map<String,Double> cars = carRentalCompany.getBlendedPrice();
+        Map<String,Double> blendedPrices = carRentalCompany.getBlendedPrice();
 
-        assertThat(cars.size()).isEqualTo(3);
+        assertThat(blendedPrices.size()).isEqualTo(3);
+
+        List<Car> carsWithBlendedPrices = carRentalCompany.getMatchingCarsIncludingBlendedPrice("VW", "Polo", LocalDate.now().plusDays(30), LocalDate.now().plusDays(35));
+
+        assertThat(carsWithBlendedPrices.size()).isEqualTo(2);
+
+        assertThat(carsWithBlendedPrices.get(0).getCostPerDay()).isEqualTo(67.5);
+
+        //make booking with blended price
+        assertThat(carRentalCompany.getBookings().size()).isEqualTo(3);
+
+        Booking bookingWithBlendedPrice = new Booking();
+        bookingWithBlendedPrice.setCar(CAR3);
+        bookingWithBlendedPrice.setRenter(RENTER4);
+        bookingWithBlendedPrice.setStartDate(LocalDate.now().plusDays(30));
+        bookingWithBlendedPrice.setEndDate(LocalDate.now().plusDays(35));
+        bookingWithBlendedPrice.setDailyCost(blendedPrices.get(CAR3.getRentalGroup()));
+        carRentalCompany.addBooking(bookingWithBlendedPrice);
+
+        assertThat(carRentalCompany.getBookings().size()).isEqualTo(4);
+
     }
 
     public void addSampleBookings(CarRentalCompany carRentalCompany){
