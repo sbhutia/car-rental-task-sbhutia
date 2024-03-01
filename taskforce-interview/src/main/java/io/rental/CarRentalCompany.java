@@ -95,7 +95,7 @@ public class CarRentalCompany {
     }
 
     /* Story 4 - car preparation */
-    public List<Booking> upcomingRentals(){
+    public synchronized List<Booking> upcomingRentals(){
         List<Booking> upcomingRentals = new ArrayList<Booking>();
 
         // find booking between tomorrow and 7 days from today
